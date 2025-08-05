@@ -96,6 +96,7 @@ class MyFirstModuleParameterNode:
     invertThreshold: bool = False
     thresholdedVolume: vtkMRMLScalarVolumeNode
     invertedVolume: vtkMRMLScalarVolumeNode
+    autoUpdate: bool = False
 
 
 #
@@ -115,6 +116,8 @@ class MyFirstModuleWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic = None
         self._parameterNode = None
         self._parameterNodeGuiTag = None
+        self.observedMarkupNode = None
+        self._markupsObserverTag = None
 
     def setup(self) -> None:
         """Called when the user opens the module the first time and the widget is initialized."""
@@ -136,6 +139,7 @@ class MyFirstModuleWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.logic = MyFirstModuleLogic()
 
         # Connections
+        self.ui.autoUpdateCheckBox.connect("toggled(bool)", self.onEnableAutoUpdate)
 
         # These connections ensure that we update parameter node when scene is closed
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
@@ -147,14 +151,34 @@ class MyFirstModuleWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
 
+    def onMarkupsUpdated(self, caller=None, event=None):
+        self.onApplyButton()
+
+    def onEnableAutoUpdate(self, autoUpdate):
+         if self._markupsObserverTag:
+             self.observedMarkupNode.RemoveObserver(self._markupsObserverTag)
+             self.observedMarkupNode = None
+             self._markupsObserverTag = None
+         if autoUpdate and self.ui.inputSelector.currentNode:
+             self.observedMarkupNode = self.ui.inputSelector.currentNode()
+             self._markupsObserverTag = self.observedMarkupNode.AddObserver(
+                slicer.vtkMRMLMarkupsNode.PointModifiedEvent, 
+                self.onMarkupsUpdated)
+
     def cleanup(self) -> None:
         """Called when the application closes and the module widget is destroyed."""
         self.removeObservers()
+        self.ui = None
+        self.logic = None
+        self._parameterNode = None
+        self._parameterNodeGuiTag = None
 
     def enter(self) -> None:
         """Called each time the user opens this module."""
         # Make sure parameter node exists and observed
         self.initializeParameterNode()
+        if hasattr(self.logic, 'Center of mass'):
+            self.ui.centerOfMassValueLabel.text = str(self.logic.centerOfMass)
 
     def exit(self) -> None:
         """Called each time the user opens a different module."""
