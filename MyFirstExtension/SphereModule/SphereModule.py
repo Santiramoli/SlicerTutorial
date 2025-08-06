@@ -396,17 +396,12 @@ class SphereModuleLogic(ScriptedLoadableModuleLogic):
 
 
 
-#
-# SphereModuleTest
-#
 
+# MODULE TEST
 
 class SphereModuleTest(ScriptedLoadableModuleTest):
-    """
-    This is the test case for your scripted module.
-    Uses ScriptedLoadableModuleTest base class, available at:
-    https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
-    """
+    
+    """Unit test for the SphereModule."""
 
     def setUp(self):
         """Do whatever is needed to reset the state - typically a scene clear will be enough."""
@@ -417,47 +412,35 @@ class SphereModuleTest(ScriptedLoadableModuleTest):
         self.setUp()
         self.test_SphereModule1()
 
-    def test_SphereModule1(self):
-        """Ideally you should have several levels of tests.  At the lowest level
-        tests should exercise the functionality of the logic with different inputs
-        (both valid and invalid).  At higher levels your tests should emulate the
-        way the user would interact with your code and confirm that it still works
-        the way you intended.
-        One of the most important features of the tests is that it should alert other
-        developers when their changes will have an impact on the behavior of your
-        module.  For example, if a developer removes a feature that you depend on,
-        your test should break so they know that the feature is needed.
-        """
+    def test_generateSphereFromTwoFiducials(self):
+        """Test sphere generation using two fiducial points."""
 
-        self.delayDisplay("Starting the test")
+        self.delayDisplay("Creating test input markups")
 
-        # Get/create input data
+        # Create fiducials node with two points
+        markupsNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", "TestFiducials")
+        markupsNode.AddControlPoint(0, 0, 0)
+        markupsNode.AddControlPoint(10, 0, 0)
 
-        registerSampleData()
-        inputVolume = SampleData.downloadSample("SphereModule1")
-        self.delayDisplay("Loaded test data set")
+        # Create empty model node
+        outputModel = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "TestSphereOutput")
 
-        inputScalarRange = inputVolume.GetImageData().GetScalarRange()
-        self.assertEqual(inputScalarRange[0], 0)
-        self.assertEqual(inputScalarRange[1], 695)
-
-        outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
-        threshold = 100
-
-        # Test the module logic
-
+        # Run logic
         logic = SphereModuleLogic()
+        logic.process(markupsNode, outputModel, imageThreshold=0.7)
 
-        # Test algorithm with non-inverted threshold
-        logic.process(inputVolume, outputVolume, threshold, True)
-        outputScalarRange = outputVolume.GetImageData().GetScalarRange()
-        self.assertEqual(outputScalarRange[0], inputScalarRange[0])
-        self.assertEqual(outputScalarRange[1], threshold)
+        self.delayDisplay("Verifying output model")
 
-        # Test algorithm with inverted threshold
-        logic.process(inputVolume, outputVolume, threshold, False)
-        outputScalarRange = outputVolume.GetImageData().GetScalarRange()
-        self.assertEqual(outputScalarRange[0], inputScalarRange[0])
-        self.assertEqual(outputScalarRange[1], inputScalarRange[1])
+        # Ensure model has geometry
+        polyData = outputModel.GetPolyData()
+        self.assertIsNotNone(polyData)
+        self.assertGreater(polyData.GetNumberOfPoints(), 0)
+        self.assertGreater(polyData.GetNumberOfCells(), 0)
 
-        self.delayDisplay("Test passed")
+        # Check that center of mass is as expected
+        expectedCenter = [5.0, 0.0, 0.0]
+        centerOfMass = logic.centerOfMass
+        for i in range(3):
+            self.assertAlmostEqual(centerOfMass[i], expectedCenter[i], places=3)
+
+        self.delayDisplay("SphereModule logic test passed")
