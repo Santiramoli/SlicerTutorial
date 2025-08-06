@@ -4,12 +4,14 @@ import vtk
 import slicer
 import SampleData
 import time
+import numpy as np
 from typing import Annotated
 from slicer.i18n import tr as _
 from slicer.i18n import translate
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
-from slicer import vtkMRMLScalarVolumeNode
+from slicer import vtkMRMLMarkupsFiducialNode
+from slicer import vtkMRMLModelNode
 from slicer.parameterNodeWrapper import (
     parameterNodeWrapper,
     WithinRange,
@@ -95,7 +97,7 @@ class SphereModuleWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Buttons
         self.ui.applyButton.connect("clicked(bool)", self.onApplyButton)
-        self.ui.autoUpdateCheckBox.connect("toggled(bool)", self.onEnableAutoUpdate
+        self.ui.autoUpdateCheckBox.connect("toggled(bool)", self.onEnableAutoUpdate)
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
@@ -135,7 +137,7 @@ class SphereModuleWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def initializeParameterNode(self) -> None:
         
-    """Ensure parameter node exists and observed."""
+        """Ensure parameter node exists and observed."""
         # Parameter node stores all user choices in parameter values, node selections, etc.
         # so that when the scene is saved and reloaded, these settings are restored.
 
@@ -173,7 +175,7 @@ class SphereModuleWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             # Safely check if the UI contains the 'autoUpdateCheckBox' element.
             # If present and checked, activate the auto-update feature for live model updates.
             if hasattr(self.ui, "autoUpdateCheckBox") and self.ui.autoUpdateCheckBox.checked:
-                self.onEnableAutoUpdate(True
+                self.onEnableAutoUpdate(True)
 
 
     def onEnableAutoUpdate(self, enabled: bool) -> None:
@@ -200,7 +202,7 @@ class SphereModuleWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 self.onMarkupsUpdated
             )
 
-     def onMarkupsUpdated(self, caller=None, event=None):
+    def onMarkupsUpdated(self, caller=None, event=None):
         
         """
         Callback function triggered when the input markups node is modified.
@@ -410,7 +412,7 @@ class SphereModuleTest(ScriptedLoadableModuleTest):
     def runTest(self):
         """Run as few or as many tests as needed here."""
         self.setUp()
-        self.test_SphereModule1()
+        self.test_generateSphereFromTwoFiducials()
 
     def test_generateSphereFromTwoFiducials(self):
         """Test sphere generation using two fiducial points."""
