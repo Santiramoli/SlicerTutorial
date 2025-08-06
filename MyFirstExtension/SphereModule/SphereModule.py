@@ -35,26 +35,24 @@ class SphereModule(ScriptedLoadableModule):
 
 @parameterNodeWrapper
 class SphereModuleParameterNode:
+
     """
-    The parameters needed by module.
+        The parameters needed by module:
 
-    inputVolume - The volume to threshold.
-    imageThreshold - The value at which to threshold the input volume.
-    invertThreshold - If true, will invert the threshold.
-    thresholdedVolume - The output volume that will contain the thresholded volume.
-    invertedVolume - The output volume that will contain the inverted thresholded volume.
+            inputMarkups -  Input node containing the fiducial points selected by the user.
+            outputModel -  Output node where the generated 3D model of the sphere will be stored.
+            imageThreshold - Opacity value to be applied to the generated model.
+            autoUpdate - The model will be automatically updated each time the user modifies an input point.
     """
 
-    inputVolume: vtkMRMLScalarVolumeNode
-    imageThreshold: Annotated[float, WithinRange(-100, 500)] = 100
-    invertThreshold: bool = False
-    thresholdedVolume: vtkMRMLScalarVolumeNode
-    invertedVolume: vtkMRMLScalarVolumeNode
+    inputMarkups: vtkMRMLMarkupsFiducialNode
+    outputModel: vtkMRMLModelNode
+    imageThreshold: Annotated[float, WithinRange(0, 1)] = 0.5
+    autoUpdate: bool = False
 
 
-#
-# SphereModuleWidget
-#
+
+# MODULE WIDGET
 
 
 class SphereModuleWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
