@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20.6...3.22.6 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.31.8)
 
 project(MyFirstExtension)
 
@@ -19,6 +19,7 @@ include(${Slicer_USE_FILE})
 #-----------------------------------------------------------------------------
 # Extension modules
 add_subdirectory(MyFirstModule)
+add_subdirectory(SphereModule)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
