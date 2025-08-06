@@ -52,23 +52,23 @@ class SphereModuleParameterNode:
 
 
 
-# MODULE WIDGET
-
+# MODULE WIDGET CLASS
 
 class SphereModuleWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
-    """Uses ScriptedLoadableModuleWidget base class, available at:
-    https://github.com/Slicer/Slicer/blob/main/Base/Python/slicer/ScriptedLoadableModule.py
-    """
 
     def __init__(self, parent=None) -> None:
+        
         """Called when the user opens the module the first time and the widget is initialized."""
         ScriptedLoadableModuleWidget.__init__(self, parent)
         VTKObservationMixin.__init__(self)  # needed for parameter node observation
         self.logic = None
         self._parameterNode = None
         self._parameterNodeGuiTag = None
+        self.observedMarkupNode = None
+        self._markupsObserverTag = None
 
     def setup(self) -> None:
+        
         """Called when the user opens the module the first time and the widget is initialized."""
         ScriptedLoadableModuleWidget.setup(self)
 
@@ -95,20 +95,24 @@ class SphereModuleWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Buttons
         self.ui.applyButton.connect("clicked(bool)", self.onApplyButton)
+        self.ui.autoUpdateCheckBox.connect("toggled(bool)", self.onEnableAutoUpdate
 
         # Make sure parameter node is initialized (needed for module reload)
         self.initializeParameterNode()
 
     def cleanup(self) -> None:
+        
         """Called when the application closes and the module widget is destroyed."""
         self.removeObservers()
 
     def enter(self) -> None:
+        
         """Called each time the user opens this module."""
         # Make sure parameter node exists and observed
         self.initializeParameterNode()
 
     def exit(self) -> None:
+        
         """Called each time the user opens a different module."""
         # Do not react to parameter node changes (GUI will be updated when the user enters into the module)
         if self._parameterNode:
@@ -117,30 +121,39 @@ class SphereModuleWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.removeObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
 
     def onSceneStartClose(self, caller, event) -> None:
+        
         """Called just before the scene is closed."""
         # Parameter node will be reset, do not use it anymore
         self.setParameterNode(None)
 
     def onSceneEndClose(self, caller, event) -> None:
+        
         """Called just after the scene is closed."""
         # If this module is shown while the scene is closed then recreate a new parameter node immediately
         if self.parent.isEntered:
             self.initializeParameterNode()
 
     def initializeParameterNode(self) -> None:
-        """Ensure parameter node exists and observed."""
+        
+    """Ensure parameter node exists and observed."""
         # Parameter node stores all user choices in parameter values, node selections, etc.
         # so that when the scene is saved and reloaded, these settings are restored.
 
         self.setParameterNode(self.logic.getParameterNode())
 
         # Select default input nodes if nothing is selected yet to save a few clicks for the user
-        if not self._parameterNode.inputVolume:
-            firstVolumeNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLScalarVolumeNode")
-            if firstVolumeNode:
-                self._parameterNode.inputVolume = firstVolumeNode
+        if not self._parameterNode.inputMarkups:
+            firstaMarkups = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLMarkupsFiducialNode")
+            if firstaMarkups:
+                self._parameterNode.inputMarkups = firstaMarkups
+
+        # # If no output model is selected by the user, create a new model node and assign it as the default output
+        if not self._parameterNode.outputModel:
+            model = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "SphereOutput")
+            self._parameterNode.outputModel = model
 
     def setParameterNode(self, inputParameterNode: SphereModuleParameterNode | None) -> None:
+        
         """
         Set and observe parameter node.
         Observation is needed because when the parameter node is changed then the GUI must be updated immediately.
@@ -157,32 +170,120 @@ class SphereModuleWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.addObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
             self._checkCanApply()
 
+            # Safely check if the UI contains the 'autoUpdateCheckBox' element.
+            # If present and checked, activate the auto-update feature for live model updates.
+            if hasattr(self.ui, "autoUpdateCheckBox") and self.ui.autoUpdateCheckBox.checked:
+                self.onEnableAutoUpdate(True
+
+
+    def onEnableAutoUpdate(self, enabled: bool) -> None:
+        
+        """
+        Enable or disable automatic updates of the output model when the input markups change.
+
+        If auto-update is enabled, an observer is attached to the input markups node
+        to listen for modifications (e.g. when the user moves or adds points).
+        If disabled, the observer is removed to stop triggering updates.
+        """
+        
+        # If an observer is already registered, remove it
+        if self._markupsObserverTag and self.observedMarkupNode:
+            self.observedMarkupNode.RemoveObserver(self._markupsObserverTag)
+            self._markupsObserverTag = None
+            self.observedMarkupNode = None
+
+        # If enabling auto-update and a valid input markups node exists, add an observer to watch for modifications
+        if enabled and self._parameterNode.inputMarkups:
+            self.observedMarkupNode = self._parameterNode.inputMarkups
+            self._markupsObserverTag = self.observedMarkupNode.AddObserver(
+                vtk.vtkCommand.ModifiedEvent, 
+                self.onMarkupsUpdated
+            )
+
+     def onMarkupsUpdated(self, caller=None, event=None):
+        
+        """
+        Callback function triggered when the input markups node is modified.
+
+        If auto-update is enabled, ensures the output model is valid
+        and re-applies the processing logic automatically.
+        """
+
+        # Do nothing if auto-update is disabled
+        if not self.ui.autoUpdateCheckBox.checked:
+            return
+
+        # Ensure the output model node exists before processing
+        self.ensureValidOutputModel()
+
+        # Trigger model generation based on updated markups
+        self.onApplyButton()
+
+
+
     def _checkCanApply(self, caller=None, event=None) -> None:
-        if self._parameterNode and self._parameterNode.inputVolume and self._parameterNode.thresholdedVolume:
-            self.ui.applyButton.toolTip = _("Compute output volume")
+        
+        """
+        Enable or disable the Apply button based on parameter node state.
+        The Apply button is enabled only if both input markups and output model are valid.
+        """
+
+        if self._parameterNode and self._parameterNode.inputMarkups and self._parameterNode.outputModel:
+            self.ui.applyButton.toolTip = _("Create sphere")
             self.ui.applyButton.enabled = True
         else:
-            self.ui.applyButton.toolTip = _("Select input and output volume nodes")
+            self.ui.applyButton.toolTip = _("Select input markups and output model")
             self.ui.applyButton.enabled = False
 
+
+    def ensureValidOutputModel(self):
+
+        """
+        Ensure that the output model node is valid.
+
+        If the current outputModel is not a valid vtkMRMLModelNode, it is removed
+        from the scene (if possible), and a new model node is created and assigned
+        to the parameter node.
+        """
+
+        if not isinstance(self._parameterNode.outputModel, vtkMRMLModelNode):
+            try:
+                slicer.mrmlScene.RemoveNode(self._parameterNode.outputModel)
+            except Exception as e:
+                pass # Node could not be removed, possibly already deleted
+            self._parameterNode.outputModel = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "SphereOutput")
+
     def onApplyButton(self) -> None:
-        """Run processing when user clicks "Apply" button."""
-        with slicer.util.tryWithErrorDisplay(_("Failed to compute results."), waitCursor=True):
-            # Compute output
-            self.logic.process(self.ui.inputSelector.currentNode(), self.ui.outputSelector.currentNode(),
-                               self.ui.imageThresholdSliderWidget.value, self.ui.invertOutputCheckBox.checked)
 
-            # Compute inverted output (if needed)
-            if self.ui.invertedOutputSelector.currentNode():
-                # If additional output volume is selected then result with inverted threshold is written there
-                self.logic.process(self.ui.inputSelector.currentNode(), self.ui.invertedOutputSelector.currentNode(),
-                                   self.ui.imageThresholdSliderWidget.value, not self.ui.invertOutputCheckBox.checked, showResult=False)
+        """
+        Handle Apply button click to generate or update the sphere model.
+
+        Ensures a valid output model exists, then calls the processing logic
+        with the current parameter values. If available, updates the UI label
+        to show the calculated center of mass. Displays an error message if
+        processing fails.
+        """
+
+        # Ensure output model node is valid before processing
+        self.ensureValidOutputModel()
+
+        try:
+            # Call logic to generate the sphere model based on input markups
+            self.logic.process(
+                self._parameterNode.inputMarkups,
+                self._parameterNode.outputModel,
+                self._parameterNode.imageThreshold,
+            )
+            
+            # Update center of mass label in the UI (if available)
+            if hasattr(self.logic, "centerOfMass") and hasattr(self.ui, "centerOfMassValueLabel"):
+                c = self.logic.centerOfMass
+                self.ui.centerOfMassValueLabel.setText(f"({c[0]:.2f}, {c[1]:.2f}, {c[2]:.2f})")
+        except Exception as e:
+            slicer.util.errorDisplay(f"Error updating the sphere: {str(e)}")
 
 
-#
-# SphereModuleLogic
-#
-
+# MODULE LOGIC CLASS
 
 class SphereModuleLogic(ScriptedLoadableModuleLogic):
     """This class should implement all the actual
