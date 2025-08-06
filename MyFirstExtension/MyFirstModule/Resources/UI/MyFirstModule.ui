@@ -20,7 +20,7 @@
       <item row="0" column="0">
        <widget class="QLabel" name="label">
         <property name="text">
-         <string>Input volume:</string>
+         <string>Input points:</string>
         </property>
        </widget>
       </item>
@@ -74,6 +74,26 @@
         </property>
         <property name="SlicerParameterName" stdset="0">
          <string>imageThreshold</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QCheckBox" name="autoUpdateCheckBox">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string notr="true"/>
+        </property>
+        <property name="SlicerParameterName" stdset="0">
+         <string notr="true">autoUpdate</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_7">
+        <property name="text">
+         <string>Auto-update:</string>
         </property>
        </widget>
       </item>
@@ -151,6 +171,20 @@
         </property>
         <property name="SlicerParameterName" stdset="0">
          <string>invertedVolume</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_6">
+        <property name="text">
+         <string>Center of mass:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLabel" name="centerOfMassValueLabel">
+        <property name="text">
+         <string/>
         </property>
        </widget>
       </item>
