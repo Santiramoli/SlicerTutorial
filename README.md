@@ -30,10 +30,10 @@ This module allows you to generate a 3D sphere from two fiducial points placed i
   - Click "Select Extension Source Directory"
   - Choose the path to your cloned folder: `SlicerTutorial/MyFirstExtension`
 
-### 4️⃣ Run the module
+### 3️⃣ Run the module
 - In the Module Finder, search for `MyFirstModule` or `SphereModule` and open.
 
-### 5️⃣ Use the SphereModule
+### 4️⃣ Use the SphereModule
 1. Add two Fiducial points in the 3D scene (via the "Markups" module).
 2. In SphereModule:
   - Select the input fiducial node.
