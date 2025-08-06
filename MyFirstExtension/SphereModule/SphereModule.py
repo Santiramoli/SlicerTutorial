@@ -302,42 +302,98 @@ class SphereModuleLogic(ScriptedLoadableModuleLogic):
     def getParameterNode(self):
         return SphereModuleParameterNode(super().getParameterNode())
 
+    def getCenterOfMass(self, markupsNode):
+        
+        """
+        Compute the geometric center (center of mass) of all control points in a markups node.
+
+        This function iterates over all fiducial points (control points) in the input
+        `vtkMRMLMarkupsFiducialNode`, sums their 3D coordinates, and returns the average
+        position as a list of floats [x, y, z].
+
+        Parameters:
+            markupsNode (vtkMRMLMarkupsFiducialNode): The input markups node containing points.
+
+        Returns:
+            list[float]: A 3-element list representing the center of mass [x, y, z].
+                         Returns [0.0, 0.0, 0.0] if no points are defined.
+        """
+
+        num = markupsNode.GetNumberOfControlPoints()
+        if num == 0:
+            return [0.0, 0.0, 0.0]
+
+        sumPos = np.zeros(3)
+        for i in range(num):
+            pos = markupsNode.GetNthControlPointPositionVector(i)
+            sumPos += np.array(pos)
+
+        centerOfMass = sumPos / num
+        logging.info(f'Center of mass for {markupsNode.GetName()}: {centerOfMass}')
+        return centerOfMass.tolist()
+
+
     def process(self,
-                inputVolume: vtkMRMLScalarVolumeNode,
-                outputVolume: vtkMRMLScalarVolumeNode,
-                imageThreshold: float,
-                invert: bool = False,
-                showResult: bool = True) -> None:
+                inputMarkups: vtkMRMLMarkupsFiducialNode,
+                outputModel: vtkMRMLModelNode,
+                imageThreshold: float = 0.5) -> None:
         """
-        Run the processing algorithm.
-        Can be used without GUI widget.
-        :param inputVolume: volume to be thresholded
-        :param outputVolume: thresholding result
-        :param imageThreshold: values above/below this threshold will be set to 0
-        :param invert: if True then values above the threshold will be set to 0, otherwise values below are set to 0
-        :param showResult: show output volume in slice viewers
+        Generate a 3D sphere model based on two fiducial points.
+
+        This method uses the first two control points from a markups node to define
+        the diameter of a sphere. The midpoint is used as the center, and the distance
+        between the points determines the radius. A new vtkSphere is generated and assigned
+        to the output model.
+
+        Parameters:
+            inputMarkups (vtkMRMLMarkupsFiducialNode): Fiducial node containing at least two points.
+            outputModel (vtkMRMLModelNode): Model node where the generated sphere will be stored.
+            imageThreshold (float): Used here as the opacity value for the resulting model.
         """
+            
+        # Compute and store the center of mass of all control points for later use
+        self.centerOfMass = self.getCenterOfMass(inputMarkups)
 
-        if not inputVolume or not outputVolume:
-            raise ValueError("Input or output volume is invalid")
+        # Validate input nodes
+        if not inputMarkups or not outputModel:
+            raise ValueError("Input markups or output model is invalid")
+
+        # Ensure that there are at least two points to define a sphere
+        numPoints = inputMarkups.GetNumberOfControlPoints()
+        if numPoints < 2:
+            raise ValueError("At least two points are required.")
+
+        # Retrieve positions of the first two points
+        p0 = [0.0, 0.0, 0.0]
+        p1 = [0.0, 0.0, 0.0]
+        inputMarkups.GetNthControlPointPosition(0, p0)
+        inputMarkups.GetNthControlPointPosition(1, p1)
+
+        # Compute sphere center (midpoint between p0 and p1) and radius
+        center = [(p0[i] + p1[i]) / 2.0 for i in range(3)]
+        radius = np.linalg.norm(np.array(p0) - np.array(p1)) / 2.0
+
+        # Create a high-resolution VTK sphere based on calculated center and radius
+        sphere = vtk.vtkSphereSource()
+        sphere.SetCenter(center)
+        sphere.SetRadius(radius)
+        sphere.SetThetaResolution(64)
+        sphere.SetPhiResolution(64)
+        sphere.Update()
+    
+        # Set the generated geometry into the output model node
+        outputModel.SetAndObservePolyData(sphere.GetOutput())
+        outputModel.CreateDefaultDisplayNodes()
+
+        # Configure display properties for the model node
+        displayNode = outputModel.GetDisplayNode()
+        displayNode.SetColor(0.1, 0.6, 0.9)
+        displayNode.SetOpacity(imageThreshold)
+        displayNode.SetSliceIntersectionThickness(2)
+
+        displayNode.SetVisibility2D(True)
 
 
-        startTime = time.time()
-        logging.info("Processing started")
-
-        # Compute the thresholded output volume using the "Threshold Scalar Volume" CLI module
-        cliParams = {
-            "InputVolume": inputVolume.GetID(),
-            "OutputVolume": outputVolume.GetID(),
-            "ThresholdValue": imageThreshold,
-            "ThresholdType": "Above" if invert else "Below",
-        }
-        cliNode = slicer.cli.run(slicer.modules.thresholdscalarvolume, None, cliParams, wait_for_completion=True, update_display=showResult)
-        # We don't need the CLI module node anymore, remove it to not clutter the scene with it
-        slicer.mrmlScene.RemoveNode(cliNode)
-
-        stopTime = time.time()
-        logging.info(f"Processing completed in {stopTime-startTime:.2f} seconds")
 
 
 #
