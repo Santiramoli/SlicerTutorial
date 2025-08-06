@@ -15,5 +15,32 @@ This module allows you to generate a 3D sphere from two fiducial points placed i
 - ⚙️ Options: `Image Threshold` for opacity of the sphere and `Auto Update` to automatically updates the sphere.
 - 📍 It also calculates the center of mass of the defined points.
 
-# 🖼 Screenshot
+
+# 🚀 How to Use
+### 1️⃣ Clone the repository
+```bash
+  git clone https://github.com/Santiramoli/SlicerTutorial.git
+```
+
+### 2️⃣ Launch Slicer and open Extension Wizard
+
+1. Open 3D Slicer.
+2. Go to View → Extension Wizard.
+3. In the Extension Wizard panel:
+  - Click "Select Extension Source Directory"
+  - Choose the path to your cloned folder: `SlicerTutorial/MyFirstExtension`
+
+### 4️⃣ Run the module
+- In the Module Finder, search for `MyFirstModule` or `SphereModule` and open.
+
+### 5️⃣ Use the SphereModule
+1. Add two Fiducial points in the 3D scene (via the "Markups" module).
+2. In SphereModule:
+  - Select the input fiducial node.
+  - Set the output model (a new one will be created if needed).
+  - Adjust the opacity if desired.
+3. Click Apply → a sphere will be generated between the two points.
+
+
+# 🖼 Example Result
 ![Screenshot](./MyFirstExtension/SphereModule/Resources/Icons/SphereModel.png)
