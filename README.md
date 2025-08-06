@@ -1,3 +1,3 @@
 # 📦 MyFirstExtension
 
-![Screenshot](./SphereModule/Resources/Icons/SphereModel.png)
+![Screenshot](./MyFirstExtension/SphereModule/Resources/Icons/SphereModel.png)
