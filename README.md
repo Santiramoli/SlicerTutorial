@@ -12,7 +12,7 @@ This module allows you to generate a 3D sphere from two fiducial points placed i
 
 - 📌 Input: vtkMRMLMarkupsFiducialNode with two points.
 - 📦 Output: vtkMRMLModelNode representing the created sphere.
-- ⚙️ Options: `Image Threshold` to control the opacity of the sphere and `Auto Update` to automatically updates the sphere if the points are moved.
+- ⚙️ Options: `Image Threshold` for opacity of the sphere and `Auto Update` to automatically updates the sphere.
 - 📍 It also calculates the center of mass of the defined points.
 
 # 🖼 Screenshot
